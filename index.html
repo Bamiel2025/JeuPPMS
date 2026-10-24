@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CRUE À AURIOL — Jeu de prévention (voxel)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@400;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0e1620; --panel:#1f2a37; --panel2:#273445; --line:#0c131c;
+    --txt:#eef3f7; --mut:#9fb1c4; --amber:#f4b740; --orange:#ef6c3b;
+    --cyan:#38bdf8; --green:#57c98a; --red:#e0524c; --paper:#f3ead6; --blue:#5b8def;
+    --shadow:4px 4px 0 rgba(0,0,0,.38);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;font-family:'Nunito',system-ui,sans-serif;color:var(--txt)}
+  body{background:
+      radial-gradient(1200px 700px at 70% -10%, #16243a 0%, transparent 60%),
+      radial-gradient(900px 600px at 10% 110%, #1a2230 0%, transparent 55%),
+      #0a0f16;}
+  #scene{position:fixed;inset:0;display:block;z-index:0}
+  #vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(4,8,14,.55) 100%)}
+  #rain{position:fixed;inset:-20% 0 0 0;z-index:1;pointer-events:none;opacity:0;transition:opacity .8s;
+    background-image:repeating-linear-gradient(102deg, rgba(190,225,245,.0) 0 6px, rgba(190,225,245,.35) 6px 7px);
+    background-size:14px 90px;animation:fall .5s linear infinite;mix-blend-mode:screen}
+  @keyframes fall{to{background-position:0 90px}}
+
+  .vox{background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 22px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.022) 0 1px, transparent 1px 22px);}
+  .panel{position:fixed;z-index:5;background:var(--panel);border:3px solid var(--line);
+    border-radius:10px;box-shadow:var(--shadow);padding:12px 14px;
+    opacity:0;transform:translateY(10px);animation:rise .5s forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .panel h2{font-family:'Bricolage Grotesque';font-weight:800;font-size:14px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--amber);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .tag{font-family:'Press Start 2P';font-size:8px;color:var(--ink);background:var(--amber);
+    padding:4px 6px;border-radius:5px;box-shadow:2px 2px 0 rgba(0,0,0,.3)}
+  .role-line{font-size:11.5px;color:var(--paper);background:#0e1620;border-left:3px solid var(--amber);
+    padding:6px 8px;border-radius:0 6px 6px 0;margin-bottom:10px;line-height:1.3}
+  .role-line b{color:var(--amber)}
+
+  .btn,.lvl,#floodBtn,#safeBtn,.opt,.topbtn{position:relative;overflow:hidden}
+  .rip{position:absolute;border-radius:50%;background:rgba(255,255,255,.4);transform:scale(0);
+    animation:rip .6s ease-out;pointer-events:none}
+  @keyframes rip{to{transform:scale(2.4);opacity:0}}
+
+  #topbar{position:fixed;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;gap:12px;
+    padding:10px 16px;background:linear-gradient(180deg,#16202c,#16202cf2);border-bottom:3px solid var(--line);
+    animation:rise .4s forwards;opacity:0}
+  #topbar::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.05) 50%,transparent 70%);
+    background-size:220% 100%;animation:shimmer 6s linear infinite}
+  @keyframes shimmer{to{background-position:-220% 0}}
+  #logo{font-family:'Press Start 2P';font-size:13px;color:var(--paper);line-height:1.4;text-shadow:2px 2px 0 var(--orange)}
+  #logo small{display:block;font-family:'Bricolage Grotesque';font-size:11px;color:var(--cyan);
+    letter-spacing:.18em;margin-top:4px;text-shadow:none}
+  .stat{display:flex;flex-direction:column;gap:2px;padding:4px 12px;border-left:2px dashed #33445a;transition:.2s}
+  .stat:hover{background:rgba(255,255,255,.03)}
+  .stat .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+  .stat .v{font-family:'Press Start 2P';font-size:13px;color:var(--txt)}
+  #alertVal.warn{color:var(--amber)} #alertVal.danger{color:var(--red);animation:blink .7s infinite}
+  @keyframes blink{50%{opacity:.35}}
+  #waterWrap{width:120px;height:12px;background:#0c131c;border:2px solid var(--line);border-radius:6px;overflow:hidden;margin-top:3px}
+  #waterBar{height:100%;width:0%;background:linear-gradient(90deg,#2b8fc9,var(--cyan));transition:width .15s}
+  .spacer{flex:1}
+  .topbtns{display:flex;gap:8px}
+  .topbtn{font-family:'Bricolage Grotesque';font-weight:800;font-size:12.5px;letter-spacing:.02em;cursor:pointer;
+    color:var(--txt);background:var(--panel2);border:2px solid var(--line);border-radius:9px;padding:8px 12px;
+    box-shadow:0 3px 0 #0a1119;transition:.08s;display:flex;align-items:center;gap:6px}
+  .topbtn:hover{filter:brightness(1.12);border-color:#3a4a5e}
+  .topbtn:active{transform:translateY(2px);box-shadow:0 1px 0 #0a1119}
+  .topbtn.ppms{color:#06210f;background:var(--green);border-color:#1d5e3c;box-shadow:0 3px 0 #1d5e3c}
+  .topbtn.menu{color:var(--ink);background:var(--amber);border-color:#7d5a12;box-shadow:0 3px 0 #7d5a12}
+  #compass{width:46px;height:46px;border:3px solid var(--line);border-radius:50%;background:#0c131c;
+    display:grid;place-items:center;position:relative;box-shadow:var(--shadow);flex:none}
+  #compass .n{position:absolute;top:3px;font-family:'Press Start 2P';font-size:8px;color:var(--red)}
+  #compass .needle{width:3px;height:24px;background:linear-gradient(var(--red) 50%,#cfd8e3 50%);border-radius:2px}
+
+  #obj{top:74px;left:14px;width:268px;animation-delay:.05s}
+  .obj-item{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;margin-bottom:6px;
+    background:var(--panel2);border:2px solid #11192400;transition:.2s}
+  .obj-item:hover{transform:translateX(3px)}
+  .obj-item .ic{width:26px;height:26px;display:grid;place-items:center;border-radius:6px;font-size:15px;
+    background:#0e1620;border:2px solid var(--line);flex:none;transition:.2s}
+  .obj-item .tx{font-size:13px;font-weight:700;line-height:1.2}
+  .obj-item .tx small{display:block;font-weight:600;color:var(--mut);font-size:11px}
+  .obj-item.done{border-color:var(--green);background:#16301f}
+  .obj-item.done .ic{background:var(--green);color:#06210f;transform:rotate(-8deg) scale(1.05)}
+  .obj-item.done .tx{color:#bff0d2}
+  .obj-item.done .tx small{color:#7fcf9d}
+
+  #hydro{top:74px;right:14px;width:330px;animation-delay:.1s}
+  #hydroCanvas{width:100%;height:168px;display:block;background:#0c131c;border:2px solid var(--line);border-radius:8px}
+  .legend{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:8px;font-size:11px;color:var(--mut)}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .dot{width:12px;height:4px;border-radius:2px;display:inline-block}
+  #hydroHint{margin-top:8px;font-size:12px;color:var(--paper);background:#0e1620;border-left:3px solid var(--cyan);
+    padding:6px 8px;border-radius:0 6px 6px 0;line-height:1.35}
+
+  #actionbar{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:6;display:flex;
+    align-items:center;gap:12px;background:var(--panel);border:3px solid var(--line);border-radius:12px;
+    padding:10px 14px;box-shadow:var(--shadow);animation:rise .5s .15s forwards;opacity:0}
+  #floodBtn{font-family:'Bricolage Grotesque';font-weight:800;font-size:15px;letter-spacing:.03em;
+    color:#fff;background:linear-gradient(180deg,#f47b4b,var(--orange));border:3px solid #7d2e12;
+    border-radius:10px;padding:12px 20px;cursor:pointer;box-shadow:0 4px 0 #7d2e12;transition:.08s;text-transform:uppercase}
+  #floodBtn:hover{filter:brightness(1.08)} #floodBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #7d2e12}
+  #floodBtn:disabled{filter:grayscale(.7) brightness(.7);cursor:not-allowed;box-shadow:0 4px 0 #444}
+  #safeBtn{font-family:'Bricolage Grotesque';font-weight:800;font-size:12.5px;letter-spacing:.01em;
+    color:#06210f;background:linear-gradient(180deg,#74dca0,var(--green));border:3px solid #1d5e3c;
+    border-radius:10px;padding:10px 14px;cursor:pointer;box-shadow:0 4px 0 #1d5e3c;transition:.08s;
+    text-transform:uppercase;display:none;align-items:center;justify-content:center;gap:7px;
+    line-height:1;text-align:center;white-space:nowrap}
+  #safeBtn .sb-ic{font-size:14px;line-height:1;display:inline-flex;align-items:center}
+  #safeBtn .sb-tx{line-height:1;display:inline-block}
+  #safeBtn:hover:not(:disabled){filter:brightness(1.07)}
+  #safeBtn:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 #1d5e3c}
+  #safeBtn:disabled{filter:grayscale(.6) brightness(.82);cursor:not-allowed;box-shadow:0 4px 0 #2c3a30}
+  #safeBtn.ready{animation:safePulse 1.3s infinite}
+  @keyframes safePulse{
+    0%{box-shadow:0 4px 0 #1d5e3c,0 0 0 0 rgba(87,201,138,.55)}
+    70%{box-shadow:0 4px 0 #1d5e3c,0 0 0 13px rgba(87,201,138,0)}
+    100%{box-shadow:0 4px 0 #1d5e3c,0 0 0 0 rgba(87,201,138,0)}}
+  .keys{display:flex;gap:6px;flex-wrap:wrap;max-width:360px}
+  .key{font-size:11px;font-weight:700;color:var(--mut);background:#0e1620;border:2px solid var(--line);
+    border-radius:6px;padding:4px 7px;white-space:nowrap;transition:.15s}
+  .key:hover{color:var(--txt);border-color:#3a4a5e}
+  .key b{color:var(--amber);font-family:'Press Start 2P';font-size:9px}
+
+  #log{bottom:14px;left:14px;width:330px;max-height:170px;overflow:hidden;animation-delay:.2s}
+  #logList{display:flex;flex-direction:column;gap:5px}
+  .logline{font-size:12.5px;line-height:1.3;padding:6px 8px;border-radius:7px;background:var(--panel2);
+    border-left:3px solid var(--cyan);animation:slidein .3s}
+  .logline.good{border-left-color:var(--green)} .logline.bad{border-left-color:var(--red)}
+  .logline.warn{border-left-color:var(--amber)}
+  @keyframes slidein{from{opacity:0;transform:translateX(-8px)}}
+
+  #toast{position:fixed;top:74px;left:50%;transform:translate(-50%,-18px);z-index:30;
+    background:var(--panel);border:3px solid var(--line);border-left:6px solid var(--cyan);border-radius:10px;
+    padding:10px 16px;font-weight:800;font-size:14px;box-shadow:var(--shadow);opacity:0;pointer-events:none;
+    transition:opacity .25s, transform .25s;max-width:80vw;text-align:center}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  #toast.good{border-left-color:var(--green)} #toast.bad{border-left-color:var(--red)} #toast.warn{border-left-color:var(--amber)}
+
+  .overlay{position:fixed;inset:0;z-index:20;background:rgba(6,11,18,.72);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;padding:20px}
+  .overlay.show{display:flex;animation:fade .25s}
+  @keyframes fade{from{opacity:0}}
+  .modal{width:min(680px,94vw);max-height:90vh;overflow:auto;background:var(--panel);border:4px solid var(--line);
+    border-radius:16px;box-shadow:8px 8px 0 rgba(0,0,0,.45);padding:24px 26px;animation:pop .3s cubic-bezier(.2,1.2,.4,1)}
+  @keyframes pop{from{transform:scale(.92) translateY(14px);opacity:0}}
+  .modal h1{font-family:'Bricolage Grotesque';font-weight:800;font-size:30px;line-height:1.05;margin-bottom:4px}
+  .modal h1 .hl{color:var(--cyan)} .modal .sub{color:var(--mut);font-weight:700;margin-bottom:16px;font-size:13px;letter-spacing:.04em}
+  .scenario{background:#0e1620;border:2px solid var(--line);border-radius:10px;padding:14px 16px;font-size:14px;line-height:1.55;margin-bottom:18px}
+  .scenario b{color:var(--amber)}
+  .levels{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px}
+  .lvl{cursor:pointer;border:3px solid var(--line);border-radius:12px;padding:14px 12px;background:var(--panel2);
+    text-align:center;transition:.12s;box-shadow:0 4px 0 #0a1119}
+  .lvl:hover{transform:translateY(-3px);border-color:var(--amber);box-shadow:0 7px 0 #0a1119}
+  .lvl:active{transform:translateY(1px);box-shadow:0 2px 0 #0a1119}
+  .lvl .n{font-family:'Press Start 2P';font-size:11px;color:var(--amber)}
+  .lvl .t{font-family:'Bricolage Grotesque';font-weight:800;font-size:16px;margin:8px 0 6px}
+  .lvl .d{font-size:11.5px;color:var(--mut);line-height:1.35}
+  .lvl.l1 .n{color:var(--green)} .lvl.l3 .n{color:var(--red)}
+  .btn{font-family:'Bricolage Grotesque';font-weight:800;font-size:15px;border:3px solid var(--line);
+    border-radius:10px;padding:11px 18px;cursor:pointer;box-shadow:0 4px 0 #0a1119;transition:.08s}
+  .btn:hover{filter:brightness(1.06)} .btn:active{transform:translateY(3px);box-shadow:0 1px 0 #0a1119}
+  .btn.primary{background:var(--amber);color:var(--ink)} .btn.ghost{background:var(--panel2);color:var(--txt)}
+  .btn.green{background:var(--green);color:#06210f}
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px}
+
+  .quizModalBox{width:min(940px,96vw)}
+  .quizGrid{display:grid;grid-template-columns:1fr 312px;gap:18px;align-items:start}
+  .quizHydro{position:sticky;top:0;background:#0e1620;border:2px solid var(--line);border-radius:12px;padding:12px}
+  .qhTitle{font-family:'Bricolage Grotesque';font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--cyan);margin-bottom:8px;display:flex;align-items:center;gap:7px}
+  .qhTitle .live{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 0 0 rgba(224,82,76,.6);animation:pulse 1.2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(224,82,76,.6)}70%{box-shadow:0 0 0 8px rgba(224,82,76,0)}100%{box-shadow:0 0 0 0 rgba(224,82,76,0)}}
+  #quizHydroCanvas{width:100%;height:196px;display:block;background:#0c131c;border:2px solid var(--line);border-radius:8px}
+  #quizHydroHint{margin-top:8px;font-size:11.5px;color:var(--paper);background:#16202c;border-left:3px solid var(--amber);
+    padding:6px 8px;border-radius:0 6px 6px 0;line-height:1.35}
+  .q{background:var(--panel2);border:2px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+  .q .qt{font-weight:800;font-size:14px;margin-bottom:9px;display:flex;gap:8px}
+  .q .qt .qn{font-family:'Press Start 2P';font-size:9px;color:var(--ink);background:var(--cyan);border-radius:5px;padding:4px 6px;height:fit-content}
+  .opt{display:flex;align-items:center;gap:9px;padding:8px 10px;border:2px solid #11192400;border-radius:8px;
+    margin-bottom:6px;cursor:pointer;font-size:13px;font-weight:600;background:#0e1620;transition:.12s}
+  .opt:hover{border-color:#3a4a5e;transform:translateX(2px)} .opt input{accent-color:var(--cyan);width:16px;height:16px}
+  .opt.correct{border-color:var(--green);background:#16301f} .opt.wrong{border-color:var(--red);background:#321616}
+  .qfeedback{font-size:12px;margin-top:6px;font-weight:700}
+
+  .ppmsModalBox{width:min(860px,96vw)}
+  .ppms-lead{font-size:14px;line-height:1.55;color:var(--txt);background:#0e1620;border:2px solid var(--line);
+    border-radius:10px;padding:12px 16px;margin-bottom:16px}
+  .ppms-lead b{color:var(--cyan)}
+  .ppms-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .phase{background:var(--panel2);border:2px solid var(--line);border-left:6px solid var(--mut);border-radius:12px;
+    padding:14px 16px;transition:.15s}
+  .phase:hover{transform:translateY(-3px);box-shadow:0 8px 0 rgba(0,0,0,.25)}
+  .phase.before{border-left-color:var(--cyan)} .phase.during{border-left-color:var(--orange)}
+  .phase.after{border-left-color:var(--green)} .phase.forbid{border-left-color:var(--red);grid-column:1 / -1}
+  .phase .ph{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .phase .ph .badge{font-family:'Press Start 2P';font-size:9px;color:var(--ink);border-radius:6px;padding:5px 8px;box-shadow:2px 2px 0 rgba(0,0,0,.3)}
+  .phase.before .badge{background:var(--cyan)} .phase.during .badge{background:var(--orange);color:#fff}
+  .phase.after .badge{background:var(--green)} .phase.forbid .badge{background:var(--red);color:#fff}
+  .phase .ph .ttl{font-family:'Bricolage Grotesque';font-weight:800;font-size:17px}
+  .phase ul{list-style:none;display:grid;gap:7px}
+  .phase li{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.4}
+  .phase li .m{flex:none;width:20px;height:20px;display:grid;place-items:center;border-radius:5px;font-size:12px;background:#0e1620;border:1px solid var(--line)}
+  .phase.forbid li .m{color:var(--red)}
+  .nums{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .num{flex:1;min-width:150px;background:#0e1620;border:2px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;transition:.15s}
+  .num:hover{border-color:var(--amber);transform:translateY(-2px)}
+  .num .big{font-family:'Press Start 2P';font-size:16px;color:var(--amber)}
+  .num .lab{font-size:12px;font-weight:700;line-height:1.25}
+  .num .lab small{display:block;color:var(--mut);font-weight:600}
+
+  .verdict{font-family:'Press Start 2P';font-size:14px;padding:10px 14px;border-radius:10px;margin-bottom:14px;text-align:center}
+  .verdict.win{background:#16301f;color:var(--green);border:2px solid var(--green)}
+  .verdict.part{background:#332a12;color:var(--amber);border:2px solid var(--amber)}
+  .verdict.lose{background:#321616;color:var(--red);border:2px solid var(--red)}
+  .recap{display:grid;gap:7px;margin-bottom:6px}
+  .recap .r{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.4;padding:7px 10px;border-radius:8px;background:var(--panel2)}
+  .recap .r .m{font-size:15px}
+  .score{font-family:'Press Start 2P';font-size:18px;color:var(--amber);text-align:center;margin:10px 0}
+
+  #fatal{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:40;display:none;
+    background:#321616;border:3px solid var(--red);border-radius:12px;padding:12px 16px;max-width:520px;
+    box-shadow:var(--shadow);font-size:13px;line-height:1.4;text-align:center}
+  #fatal.show{display:block;animation:rise .4s}
+  #fatal b{color:#ffb4b0} #fatal button{margin-top:8px}
+
+  @media (max-width:1100px){ #hydro{display:none} #obj{width:230px} #log{display:none} }
+  @media (max-width:820px){ .quizGrid{grid-template-columns:1fr} .quizHydro{position:static;order:-1}
+    .ppms-grid{grid-template-columns:1fr} .topbtn span.lbl{display:none} .keys{display:none} }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="vignette"></div>
+<div id="rain"></div>
+
+<div id="topbar" class="vox">
+  <div id="logo">CRUE À AURIOL<small>JEU DE PRÉVENTION · VOXEL</small></div>
+  <div class="stat"><span class="k">Niveau</span><span class="v" id="lvlVal">—</span></div>
+  <div class="stat"><span class="k" id="alertKey">Préparation</span><span class="v" id="alertVal">--</span></div>
+  <div class="stat"><span class="k">Niveau de l'eau</span><div id="waterWrap"><div id="waterBar"></div></div></div>
+  <div class="spacer"></div>
+  <div class="topbtns">
+    <button type="button" class="topbtn ppms" id="ppmsBtn">🛡️ <span class="lbl">Mesures PPMS</span></button>
+    <button type="button" class="topbtn menu" id="menuBtn">↺ <span class="lbl">Menu</span></button>
+  </div>
+  <div id="compass" title="Nord = haut de la carte (L'Huveaune)"><span class="n">N</span><span class="needle"></span></div>
+</div>
+
+<div id="obj" class="panel vox">
+  <h2><span class="tag">PPMS</span> Objectifs de sûreté</h2>
+  <div class="role-line">👨‍🏫 Ton rôle : <b>professeur référent</b> — tu es responsable de l'évacuation de tes élèves.</div>
+  <div class="obj-item" id="o-kit"><div class="ic">🧰</div><div class="tx">Trousse de secours<small>Récupérer le kit d'urgence</small></div></div>
+  <div class="obj-item" id="o-call"><div class="ic">📞</div><div class="tx">Appeler le 112<small>Lieu, nombre d'élèves, danger</small></div></div>
+  <div class="obj-item" id="o-save"><div class="ic">🧍</div><div class="tx">Tes élèves en sûreté <span id="saveCount">0/0</span><small>Rallie‑les (E) puis ramène‑les au collège</small></div></div>
+  <div class="obj-item" id="o-refuge"><div class="ic">⬆️</div><div class="tx">Monter à l'étage<small>Point de ralliement : étage du collège Ubelka</small></div></div>
+</div>
+
+<div id="hydro" class="panel vox">
+  <h2><span class="tag">HYDRO</span> Hydrogramme de l'Huveaune</h2>
+  <canvas id="hydroCanvas" width="600" height="320"></canvas>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--cyan)"></i>Débit (m³/s)</span>
+    <span><i class="dot" style="background:var(--amber)"></i>Seuil de crue</span>
+    <span><i class="dot" style="background:var(--red)"></i>Débit de pointe</span>
+  </div>
+  <div id="hydroHint">Suis le repère rouge vertical jusqu'à l'axe des heures pour lire l'heure du <b>pic</b>. La <b>rampe montante</b> indique quand être à l'abri.</div>
+</div>
+
+<div id="actionbar" class="vox">
+  <button type="button" id="floodBtn" disabled>🌊 Déclencher la crue</button>
+  <button type="button" id="safeBtn" disabled><span class="sb-ic">✅</span><span class="sb-tx">Mise en sécurité</span></button>
+  <div class="keys">
+    <span class="key"><b>ZQSD</b>/flèches bouger</span>
+    <span class="key"><b>E</b> interagir</span>
+    <span class="key"><b>C</b> appeler</span>
+    <span class="key"><b>H</b> hydrogramme</span>
+  </div>
+</div>
+
+<div id="log" class="panel vox">
+  <h2>📟 Journal de prévention</h2>
+  <div id="logList"></div>
+</div>
+
+<div id="toast"></div>
+
+<div class="overlay show" id="startModal">
+  <div class="modal vox">
+    <h1>Crue sur <span class="hl">L'Huveaune</span></h1>
+    <div class="sub">TU INCARNES LE PROFESSEUR RÉFÉRENT SÉCURITÉ · COLLÈGE UBELKA · AURIOL</div>
+    <div class="scenario">
+      Une alerte crue est déclenchée. Au <b>collège Ubelka</b>, <b>tu es le professeur référent sécurité</b> :
+      c'est <b>toi</b>, l'adulte en charge, qui es responsable de l'évacuation et de la mise en sûreté de <b>tes élèves</b>.
+      Agis comme on l'attend d'un encadrant — calme, méthodique, exemplaire : tes élèves te regardent.
+      <br><br>
+      ➜ Tu as <b>15 secondes</b> de préparation : récupère la <b>trousse de secours</b>, trouve un <b>moyen d'appeler</b>,
+      <b>rallie tes groupes d'élèves</b> (touche E) puis <b>ramène‑les tous au collège Ubelka</b>.
+      <br>➜ Le <b>point de ralliement est l'étage du collège</b> (touche E dans le collège). En tant que responsable,
+      <b>tu montes en dernier</b>, après t'être assuré que tous tes élèves ralliés sont là. En crue, on monte en hauteur ;
+      jamais de sous‑sol, jamais d'ascenseur, et on ne traverse <b>jamais</b> une route inondée.
+      <br><br>
+      La crue se déclenche <b>automatiquement à 15 s</b> (ou plus tôt avec « Déclencher la crue »).
+      Regarde l'eau <b>déborder de l'Huveaune</b> et envahir les rues : si tu as <b>tout réussi avant</b>,
+      le bouton « <b>✅ Mise en sécurité</b> » verrouille ta réussite et <b>accélère la montée</b> pour que tu observes
+      la crue depuis l'étage, avec tes élèves à l'abri. Lis l'<b>hydrogramme</b> (visible pendant le quiz) pour anticiper le pic.
+    </div>
+    <div class="levels">
+      <div class="lvl l1" data-lvl="1"><div class="n">NIV 1</div><div class="t">Découverte</div>
+        <div class="d">15 s · <b>1</b> groupe d'élèves · montée <b>1 min 30</b> · 1 question · flèches d'aide</div></div>
+      <div class="lvl l2" data-lvl="2"><div class="n">NIV 2</div><div class="t">Confirmé</div>
+        <div class="d">15 s · <b>2</b> groupes · montée <b>1 min</b> · 2 questions</div></div>
+      <div class="lvl l3" data-lvl="3"><div class="n">NIV 3</div><div class="t">Expert</div>
+        <div class="d">15 s · <b>3</b> groupes · montée <b>1 min</b> · 4 questions · sans aide</div></div>
+    </div>
+    <div class="row"><span style="color:var(--mut);font-size:12px;align-self:center">Clique sur un niveau pour prendre ton poste</span></div>
+  </div>
+</div>
+
+<div class="overlay" id="quizModal">
+  <div class="modal vox quizModalBox">
+    <h1>📈 Interprète l'<span class="hl">hydrogramme</span></h1>
+    <div class="sub">La courbe se trace en direct à droite. Lis‑la, puis réponds : chaque bonne réponse te donne du temps de marge.</div>
+    <div class="quizGrid">
+      <div id="quizBody"></div>
+      <aside class="quizHydro">
+        <div class="qhTitle"><span class="live"></span> Hydrogramme en direct</div>
+        <canvas id="quizHydroCanvas" width="340" height="240"></canvas>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--cyan)"></i>Débit</span>
+          <span><i class="dot" style="background:var(--amber)"></i>Seuil</span>
+          <span><i class="dot" style="background:var(--red)"></i>Pic</span>
+        </div>
+        <div id="quizHydroHint">Le <b>repère rouge vertical</b> te donne l'heure du sommet. La <b>rampe montante</b> = le moment d'agir.</div>
+      </aside>
+    </div>
+    <div class="row"><button type="button" class="btn primary" id="quizSubmit">Valider & lancer l'alerte</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="confirmModal">
+  <div class="modal vox" style="width:min(460px,92vw)">
+    <h1 style="font-size:22px">⬆️ Monter à l'étage du collège ?</h1>
+    <div class="scenario" style="margin:14px 0">
+      Tu vas te réfugier en hauteur au <b>collège Ubelka</b>, le point de ralliement. En tant que <b>professeur référent</b>,
+      tu montes <b>après</b> avoir vérifié que tous tes élèves ralliés sont là. <b>Attention :</b> une fois monté,
+      tu ne pourras plus redescendre. Les élèves non ramenés jusqu'ici resteront en danger.
+    </div>
+    <div class="row">
+      <button type="button" class="btn ghost" id="confirmNo">Pas encore</button>
+      <button type="button" class="btn green" id="confirmYes">Oui, monter</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ppmsModal">
+  <div class="modal vox ppmsModalBox">
+    <h1>🛡️ Mesures <span class="hl">PPMS</span> « inondation »</h1>
+    <div class="sub">RÉFÉRENTIEL DES BONS COMPORTEMENTS · À LIRE AVANT OU PENDANT LA PARTIE</div>
+    <div class="ppms-lead">
+      Le <b>PPMS</b> (Plan Particulier de Mise en Sûreté) organise la réaction de l'établissement face à un risque majeur.
+      En cas de <b>crue / inondation</b>, la consigne générale est la <b>mise à l'abri verticale</b> : on rejoint l'étage
+      (au collège Ubelka, le point de ralliement), on ne sort pas, et on attend les consignes officielles.
+    </div>
+    <div class="ppms-grid">
+      <div class="phase before">
+        <div class="ph"><span class="badge">AVANT</span><span class="ttl">Anticiper & s'informer</span></div>
+        <ul>
+          <li><span class="m">📡</span><span>Suivre <b>Vigicrues</b> et <b>Météo‑France</b> (vigilance orange/rouge).</span></li>
+          <li><span class="m">🗺️</span><span>Connaître le PPMS du collège : point de ralliement, étages refuges.</span></li>
+          <li><span class="m">🎒</span><span>Préparer un kit : papiers, médicaments, eau, lampe, radio à piles, téléphone chargé.</span></li>
+          <li><span class="m">🔋</span><span>Charger les téléphones ; repérer les coupures possibles (élec/gaz).</span></li>
+          <li><span class="m">🧒</span><span>En alerte, les élèves restent encadrés au collège : les familles <b>ne se déplacent pas</b>.</span></li>
+        </ul>
+      </div>
+      <div class="phase during">
+        <div class="ph"><span class="badge">PENDANT</span><span class="ttl">Se mettre en sûreté</span></div>
+        <ul>
+          <li><span class="m">⬆️</span><span>Rejoindre l'<b>étage du collège</b>, calmement et groupés.</span></li>
+          <li><span class="m">📞</span><span>Appeler le <b>112</b> en cas d'urgence vitale : lieu, nombre de personnes, danger.</span></li>
+          <li><span class="m">🔌</span><span>Si possible et sans risque : couper électricité, gaz, eau.</span></li>
+          <li><span class="m">📻</span><span>Écouter les consignes (radio/autorités) et les relayer au groupe.</span></li>
+          <li><span class="m">🤝</span><span>Rester groupé, faire l'appel, rassurer, occuper les élèves en sécurité.</span></li>
+        </ul>
+      </div>
+      <div class="phase after">
+        <div class="ph"><span class="badge">APRÈS</span><span class="ttl">Sortir de crise sans risque</span></div>
+        <ul>
+          <li><span class="m">⏳</span><span>Attendre la <b>consigne officielle</b> avant de redescendre ou d'évacuer.</span></li>
+          <li><span class="m">⚡</span><span>Ne <b>pas</b> rétablir le courant soi‑même ; faire vérifier les installations.</span></li>
+          <li><span class="m">💧</span><span>Ne pas boire l'eau du robinet avant vérification de potabilité.</span></li>
+          <li><span class="m">🧽</span><span>Aérer, nettoyer, désinfecter les locaux touchés.</span></li>
+          <li><span class="m">📸</span><span>Signaler les dégâts, photographier pour l'assurance, débrief PPMS.</span></li>
+        </ul>
+      </div>
+      <div class="phase forbid">
+        <div class="ph"><span class="badge">INTERDITS</span><span class="ttl">Les gestes qui tuent en crue</span></div>
+        <ul style="grid-template-columns:1fr 1fr;display:grid;gap:7px">
+          <li><span class="m">🚫</span><span>Ne <b>jamais</b> traverser une route inondée (30 cm d'eau emportent une voiture).</span></li>
+          <li><span class="m">🚫</span><span>Ne <b>pas</b> descendre au sous‑sol ni au rez‑de‑chaussée menacé.</span></li>
+          <li><span class="m">🚫</span><span>Ne <b>pas</b> prendre l'ascenseur (panne / piège).</span></li>
+          <li><span class="m">🚫</span><span>Ne <b>pas</b> prendre la voiture ni s'engager sur un pont submersible.</span></li>
+          <li><span class="m">🚫</span><span>Ne <b>pas</b> encombrer les lignes : 112/18 pour les urgences vitales uniquement.</span></li>
+          <li><span class="m">🚫</span><span>Ne <b>pas</b> quitter l'abri sans consigne, même si l'eau « a l'air » de baisser.</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="nums">
+      <div class="num"><span class="big">112</span><span class="lab">Urgences européennes<small>depuis tout téléphone</small></span></div>
+      <div class="num"><span class="big">18</span><span class="lab">Pompiers<small>secours & inondation</small></span></div>
+      <div class="num"><span class="big">15</span><span class="lab">SAMU<small>urgence médicale</small></span></div>
+      <div class="num"><span class="big">🌊</span><span class="lab">Vigicrues<small>vigicrues.gouv.fr</small></span></div>
+    </div>
+    <div class="row"><button type="button" class="btn primary" id="ppmsClose">J'ai compris</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="endModal">
+  <div class="modal vox">
+    <h1 id="endTitle">Bilan</h1>
+    <div class="sub">DEBRIEFING PRÉVENTION</div>
+    <div class="verdict" id="verdict"></div>
+    <div class="score" id="scoreVal"></div>
+    <div class="recap" id="recap"></div>
+    <div class="row">
+      <button type="button" class="btn ghost" id="endMenu">Changer de niveau</button>
+      <button type="button" class="btn primary" id="endRetry">Rejouer</button>
+    </div>
+  </div>
+</div>
+
+<div id="fatal">
+  <b>⚠️ Moteur 3D non chargé.</b> La scène voxel a besoin d'une connexion internet pour télécharger Three.js.
+  L'interface pédagogique (niveaux, quiz, PPMS, consignes) reste active.
+  <br><button type="button" class="btn primary" id="fatalRetry">Réessayer de charger</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onerror="window.__threeFailed=true"></script>
+
+<script>
+(function(){
+  "use strict";
+  const THREE = window.THREE;
+  const $ = id => document.getElementById(id);
+  const sceneReady = !!THREE && !window.__threeFailed;
+  const ACCEL_RISE = 26;
+
+  function ripple(e){
+    const el=e.currentTarget; if(!el) return;
+    const r=document.createElement('span'); r.className='rip';
+    const rect=el.getBoundingClientRect();
+    const size=Math.max(rect.width,rect.height);
+    r.style.width=r.style.height=size+'px';
+    const cx=(e.touches&&e.touches[0]?e.touches[0].clientX:e.clientX);
+    const cy=(e.touches&&e.touches[0]?e.touches[0].clientY:e.clientY);
+    r.style.left=(cx-rect.left-size/2)+'px'; r.style.top=(cy-rect.top-size/2)+'px';
+    el.appendChild(r); setTimeout(()=>r.remove(),600);
+  }
+  function bindRipple(sel){ document.querySelectorAll(sel).forEach(el=>el.addEventListener('click',ripple)); }
+
+  let toastTimer;
+  function toast(msg,type){ const t=$('toast'); t.textContent=msg; t.className='show '+(type||'');
+    clearTimeout(toastTimer); toastTimer=setTimeout(()=>{t.className='';},2600); }
+
+  const logList=$('logList');
+  let lastLog={t:0,m:''};
+  function log(msg,type){
+    const now=performance.now();
+    if(msg===lastLog.m && now-lastLog.t<2500) return;
+    lastLog={t:now,m:msg};
+    const d=document.createElement('div'); d.className='logline '+(type||'');
+    d.textContent=msg; logList.prepend(d); while(logList.children.length>6) logList.lastChild.remove();
+  }
+
+  /* ===== CARTE ===== */
+  const GW=64, GH=36;
+  const grid=[]; for(let z=0;z<GH;z++){ grid[z]=new Array(GW).fill('grass'); }
+  function fill(x0,z0,x1,z1,type){ for(let z=z0;z<z1;z++) for(let x=x0;x<x1;x++) if(grid[z]&&grid[z][x]!==undefined) grid[z][x]=type; }
+
+  fill(20,26,60,28,'road'); fill(44,22,62,24,'road'); fill(43,12,45,28,'road');
+  fill(3,20,5,36,'road'); fill(60,12,62,36,'road'); fill(0,2,16,4,'road');
+  fill(32,7,42,12,'park'); fill(32,16,43,26,'park'); fill(22,19,29,28,'park'); fill(11,15,16,18,'park');
+
+  const refuges=[ {x0:35,z0:8, x1:40,z1:12, slab:4, name:'Collège Ubelka', isCollege:true} ];
+  refuges.forEach(r=>fill(r.x0,r.z0,r.x1,r.z1,'interior'));
+  const collegeWalls=[[34,7,41,8],[40,8,41,12],[34,12,41,13],[34,8,35,10],[34,11,35,12]];
+  collegeWalls.forEach(w=>fill(w[0],w[1],w[2],w[3],'building'));
+
+  const landmarks=[
+    {x0:34,z0:18,x1:41,z1:24,h:3.0,name:'Gymnase multisports',type:'gym'},
+    {x0:16,z0:21,x1:21,z1:26,h:2.4,name:'Espace de la Confluence',type:'confluence'},
+  ];
+  landmarks.forEach(l=>fill(l.x0,l.z0,l.x1,l.z1,'building'));
+
+  const riverTiles=[];
+  for(let x=0;x<GW;x++){
+    let cz = (x>=32&&x<=42)? 4 : ((x<15?7:5)+Math.round(1.6*Math.sin(x*0.20+0.4)));
+    for(let dz=-1;dz<=1;dz++){ const z=cz+dz; if(z>=0&&z<GH){ grid[z][x]='river'; riverTiles.push([x,z]); } }
+  }
+  const bankTiles=[];
+  for(const [x,z] of riverTiles){
+    for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx,nz=z+dz; if(nz<0||nz>=GH||nx<0||nx>=GW) continue;
+      const t=grid[nz][nx]; if(t==='grass'||t==='park'){ grid[nz][nx]='bank'; bankTiles.push([nx,nz]); }
+    }
+  }
+
+  const solids=[
+    {x0:12,z0:33,x1:19,z1:36,h:2,col:0x6f86c9,name:'Intermarché'},
+    {x0:57,z0:19,x1:60,z1:21,h:1,col:0xe3d2b6},{x0:57,z0:30,x1:60,z1:32,h:1,col:0xe3d2b6},
+    {x0:4,z0:22,x1:7,z1:24,h:1,col:0xd9c39a},{x0:6,z0:6,x1:8,z1:8,h:2,col:0xe3d2b6},
+    {x0:8,z0:11,x1:10,z1:13,h:1,col:0xe3d2b6},{x0:50,z0:30,x1:52,z1:32,h:2,col:0xe3d2b6},
+    {x0:55,z0:8,x1:57,z1:10,h:1,col:0xe3d2b6},{x0:10,z0:30,x1:12,z1:32,h:1,col:0xe3d2b6},
+    {x0:48,z0:8,x1:50,z1:10,h:2,col:0xe3d2b6},
+  ];
+  solids.forEach(s=>fill(s.x0,s.z0,s.x1,s.z1,'building'));
+  const trees=[[41,11],[33,17],[42,25],[23,20],[28,27],[12,16],[15,17],[6,13],[26,9],[52,14],[58,26]];
+  trees.forEach(([x,z])=>{ if(grid[z]&&grid[z][x]!==undefined) grid[z][x]='tree'; });
+
+  const shrubs=[];
+  for(const [x,z] of bankTiles){ if(grid[z][x]==='bank' && ((x*7+z*13)&3)===0) shrubs.push([x,z]); }
+
+  function tileAt(x,z){ const gx=Math.floor(x),gz=Math.floor(z); if(gz<0||gz>=GH||gx<0||gx>=GW) return 'void'; return grid[gz][gx]; }
+  function blocked(x,z){ const t=tileAt(x,z); return t==='building'||t==='tree'||t==='river'||t==='void'; }
+  function refugeAt(x,z){ for(const r of refuges){ if(x>=r.x0&&x<r.x1&&z>=r.z0&&z<r.z1) return r; } return null; }
+
+  function terrainHeight(type){
+    switch(type){
+      case 'river': return 0.0;
+      case 'bank':  return 0.25;
+      case 'road':  return 0.45;
+      case 'park':  return 0.60;
+      case 'grass': return 0.65;
+      case 'tree':  return 0.65;
+      case 'interior': return 1.30;
+      case 'building': return 2.20;
+      default: return 0.65;
+    }
+  }
+
+  /* ===== ÉTAT ===== */
+  const DIFF={
+    1:{name:'Découverte',alert:15,rise:90,max:1.4,req:1,quiz:1,hints:true},
+    2:{name:'Confirmé',  alert:15,rise:60,max:2.2,req:2,quiz:2,hints:false},
+    3:{name:'Expert',    alert:15,rise:60,max:3.0,req:3,quiz:4,hints:false},
+  };
+  let state='menu', level=1, cfg=DIFF[1];
+  let alertTime=0, triggered=false, accelerated=false, riseT=0, waterY=0, hydroT=0, inRefuge=false;
+  let hasKit=false, hasPhone=false, called=false;
+  let score=0, quizCorrect=0, bonusRise=0, ended=false, peakFlash=0, peakLogged=false, quizLock=false;
+  let waterWarn1=false, waterWarn2=false;
+
+  function setObj(id,done){ $(id).classList.toggle('done',done); }
+  function activeGroups(){ return groups.filter(g=>g.active); }
+  function groupsSavedCount(){ return groups.filter(g=>g.saved).length; }
+  function allDone(){ return hasKit && called && inRefuge && groupsSavedCount()>=cfg.req; }
+  function updateHUD(){
+    $('lvlVal').textContent=level+' · '+cfg.name;
+    $('saveCount').textContent=groupsSavedCount()+'/'+cfg.req;
+    setObj('o-kit',hasKit); setObj('o-call',called); setObj('o-refuge',inRefuge);
+    setObj('o-save',groupsSavedCount()>=cfg.req);
+    if(!triggered){
+      $('alertKey').textContent='Préparation';
+      const s=Math.max(0,Math.ceil(alertTime)); $('alertVal').textContent='0:'+String(s).padStart(2,'0');
+      $('alertVal').className=s<=5?'danger':(s<=10?'warn':'');
+    }else{
+      $('alertKey').textContent=accelerated?'Montée accélérée':'Montée des eaux';
+      $('alertVal').textContent='EN COURS'; $('alertVal').className='danger';
+    }
+    $('waterBar').style.width=Math.min(100,waterY/cfg.max*100)+'%';
+    const rain=$('rain');
+    let op = state==='menu'?0 : (triggered? Math.min(0.6,0.18+waterY*0.14) : 0.10);
+    rain.style.opacity=op.toFixed(2);
+    const sb=$('safeBtn');
+    const ic=sb.querySelector('.sb-ic'), tx=sb.querySelector('.sb-tx');
+    if(state==='playing' && !ended){
+      sb.style.display='inline-flex';
+      if(accelerated){ sb.disabled=true; sb.classList.remove('ready'); ic.textContent='⏩'; tx.textContent='Crue en cours'; }
+      else { const ready=allDone(); sb.disabled=!ready; sb.classList.toggle('ready',ready); ic.textContent='✅'; tx.textContent='Mise en sécurité'; }
+    } else { sb.style.display='none'; sb.classList.remove('ready'); }
+  }
+
+  /* ===== HYDROGRAMME ===== */
+  const UM=0.45, SEUIL=0.35;
+  const gCurve=u=> u<=0?0:(u/UM)*Math.exp(1-u/UM);
+  const hCanvas=$('hydroCanvas'), hctx=hCanvas?hCanvas.getContext('2d'):null;
+  const qCanvas=$('quizHydroCanvas'), qctx=qCanvas?qCanvas.getContext('2d'):null;
+  const PEAK_HOUR=8+UM*12;
+  function fmtHour(h){ h=Math.round(h*2)/2; const hh=Math.floor(h); return hh+'h'+(h-hh>=0.5?'30':'00'); }
+  function drawHydro(ctx,W,H,cursorU,flash){
+    if(!ctx) return;
+    const small=W<420;
+    const pad={l:small?34:40,r:10,t:12,b:small?24:28};
+    ctx.clearRect(0,0,W,H);
+    const X=u=>pad.l+u*(W-pad.l-pad.r), Y=v=>H-pad.b-v*(H-pad.t-pad.b)/1.15;
+    ctx.strokeStyle='#1c2937'; ctx.lineWidth=1;
+    for(let i=0;i<=6;i++){ const u=i/6; ctx.beginPath();ctx.moveTo(X(u),pad.t);ctx.lineTo(X(u),H-pad.b);ctx.stroke(); }
+    ctx.strokeStyle='#3a4a5e'; ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,H-pad.b);ctx.lineTo(W-pad.r,H-pad.b);ctx.stroke();
+    const ticks=small?[0,0.5,1]:[0,0.25,0.5,0.75,1];
+    ctx.fillStyle='#aebfd0'; ctx.font=(small?'12px':'14px')+' Nunito'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ticks.forEach(u=>{ ctx.fillText(fmtHour(8+u*12),X(u),H-pad.b+5); });
+    ctx.save(); ctx.translate(11,H/2); ctx.rotate(-Math.PI/2); ctx.textBaseline='middle';
+    ctx.fillStyle='#7e90a3'; ctx.font=(small?'10px':'12px')+' Nunito'; ctx.fillText('m³/s',0,0); ctx.restore();
+    ctx.strokeStyle='#f4b740'; ctx.setLineDash([7,5]); ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(pad.l,Y(SEUIL));ctx.lineTo(W-pad.r,Y(SEUIL));ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#f4b740'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    ctx.font='bold '+(small?'11px':'13px')+' Nunito'; ctx.fillText('seuil de crue',pad.l+4,Y(SEUIL)-4);
+    ctx.beginPath(); ctx.moveTo(X(0),Y(0));
+    for(let i=0;i<=200;i++){ const u=i/200; if(u>cursorU)break; ctx.lineTo(X(u),Y(gCurve(u))); }
+    ctx.lineTo(X(cursorU),Y(0)); ctx.closePath(); ctx.fillStyle='rgba(56,189,248,.18)'; ctx.fill();
+    ctx.beginPath();
+    for(let i=0;i<=200;i++){ const u=i/200; const x=X(u),y=Y(gCurve(u)); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.strokeStyle='#38bdf8'; ctx.lineWidth=3; ctx.stroke();
+    if(cursorU>=UM){
+      ctx.strokeStyle='rgba(224,82,76,.45)'; ctx.lineWidth=2; ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.moveTo(X(UM),Y(1));ctx.lineTo(X(UM),H-pad.b);ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle='#e0524c'; ctx.beginPath();ctx.arc(X(UM),Y(1),small?4:6,0,7);ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.beginPath();ctx.arc(X(UM),Y(1),small?4:6,0,7);ctx.stroke();
+    }
+    ctx.strokeStyle='#eef3f7'; ctx.lineWidth=2; ctx.beginPath();ctx.moveTo(X(cursorU),pad.t);ctx.lineTo(X(cursorU),H-pad.b);ctx.stroke();
+    ctx.fillStyle='#eef3f7'; ctx.beginPath();ctx.arc(X(cursorU),Y(gCurve(cursorU)),small?3:4,0,7);ctx.fill();
+    if(flash){ ctx.fillStyle='rgba(224,82,76,.22)'; ctx.fillRect(0,0,W,H); }
+  }
+
+  /* ===== QUIZ ===== */
+  const QUESTIONS=[
+    {q:"Sur l'hydrogramme, à quelle heure se situe le débit de pointe (pic de crue) ?",
+     opts:[fmtHour(PEAK_HOUR-3),fmtHour(PEAK_HOUR),fmtHour(PEAK_HOUR+3),'20h00'], correct:1,
+     fb:"Le pic = le sommet de la courbe. Suis le repère rouge vertical jusqu'à l'axe des heures."},
+    {q:"La montée des eaux (rampe montante) est rapide. Quel est le bon réflexe ?",
+     opts:["Attendre de voir l'eau arriver","Rejoindre immédiatement l'étage du collège","Prendre la voiture pour partir","Descendre au sous‑sol ranger les affaires"], correct:1,
+     fb:"Crue rapide = on ne perd pas de temps : on gagne l'étage, jamais le sous‑sol."},
+    {q:"Le pic est prévu à "+fmtHour(PEAK_HOUR)+". À quel moment tout le monde doit‑il être en sûreté ?",
+     opts:["Au moment du pic","Après le pic","Bien avant le pic, dès la montée","Quand l'eau touche les pieds"], correct:2,
+     fb:"On anticipe sur la rampe montante, avant le pic — pas au dernier moment."},
+    {q:"Sur la courbe, le débit dépasse le « seuil de crue » (ligne pointillée) bien avant le pic. Que signifie ce seuil ?",
+     opts:["L'eau est déjà dangereuse : la vigilance s'impose","Il n'y a plus aucun risque","C'est le moment de traverser les routes","C'est le débit normal de la rivière"], correct:0,
+     fb:"Le seuil de crue marque le début du danger : dès son franchissement, on applique les consignes PPMS."},
+  ];
+  function buildQuiz(){
+    const body=$('quizBody'); body.innerHTML=''; quizLock=false;
+    $('quizSubmit').textContent='Valider & lancer l\'alerte';
+    const n=cfg.quiz;
+    for(let i=0;i<n;i++){
+      const Q=QUESTIONS[i];
+      const div=document.createElement('div'); div.className='q';
+      div.innerHTML='<div class="qt"><span class="qn">Q'+(i+1)+'</span><span>'+Q.q+'</span></div>';
+      Q.opts.forEach((o,oi)=>{
+        const lab=document.createElement('label'); lab.className='opt';
+        lab.innerHTML='<input type="radio" name="q'+i+'" value="'+oi+'"><span>'+o+'</span>';
+        div.appendChild(lab);
+      });
+      const fb=document.createElement('div'); fb.className='qfeedback'; fb.style.display='none';
+      div.appendChild(fb); div.dataset.correct=Q.correct; div.dataset.fb=Q.fb;
+      body.appendChild(div);
+    }
+    bindRipple('#quizBody .opt');
+  }
+  function submitQuiz(){
+    if(quizLock) return; quizLock=true;
+    quizCorrect=0;
+    document.querySelectorAll('#quizBody .q').forEach(q=>{
+      const sel=q.querySelector('input:checked'); const c=+q.dataset.correct;
+      q.querySelectorAll('.opt').forEach((o,oi)=>{
+        o.classList.toggle('correct',oi===c);
+        if(sel&&+sel.value===oi&&oi!==c) o.classList.add('wrong');
+      });
+      const ok=sel&&+sel.value===c; if(ok) quizCorrect++;
+      const fb=q.querySelector('.qfeedback'); fb.style.display='block';
+      fb.style.color=ok?'var(--green)':'var(--amber)';
+      fb.textContent=(ok?'✓ Bonne lecture. ':'✗ ')+q.dataset.fb;
+    });
+    bonusRise=quizCorrect*5;
+    toast('Hydrogramme : '+quizCorrect+' bonne(s) lecture(s) → +'+bonusRise+'s de marge', quizCorrect?'good':'warn');
+    $('quizSubmit').textContent='C\'est parti !';
+    setTimeout(startPlay,900);
+  }
+
+  /* ===== FLUX ===== */
+  function chooseLevel(lvl){
+    level=lvl; cfg=DIFF[lvl];
+    $('startModal').classList.remove('show');
+    buildQuiz(); hydroT=0; $('quizModal').classList.add('show'); state='quiz';
+    toast('Niveau '+lvl+' · '+cfg.name+' — lis l\'hydrogramme à droite','');
+  }
+  function startPlay(){
+    $('quizModal').classList.remove('show');
+    resetWorld();
+    state='playing'; ended=false; accelerated=false;
+    alertTime=cfg.alert; triggered=false; riseT=0; waterY=0; hydroT=0;
+    inRefuge=false; hasKit=false; hasPhone=false; called=false; score=0;
+    peakLogged=false; waterWarn1=false; waterWarn2=false;
+    if(sceneReady){ rescueTruck.visible=false; rescueHeli.visible=false; hideFlood(); }
+    $('floodBtn').disabled=false;
+    log('👨‍🏫 Vous êtes le professeur référent sécurité : 15 s pour mettre vos élèves en sûreté. Récupérez le matériel, ralliez‑les, puis montez à l\'étage du collège.','warn');
+    if(cfg.hints) log('Astuce : suivez les flèches colorées (kit, téléphone, collège).','');
+    toast('👨‍🏫 Professeur référent — vos élèves comptent sur vous','warn');
+    if(!sceneReady) toast('Mode 3D indisponible : consignes & quiz actifs','warn');
+    updateHUD();
+  }
+  function resetWorld(){ if(sceneReady) resetWorld3D(); }
+  function triggerFlood(msg){ if(triggered) return; triggered=true; riseT=0; $('floodBtn').disabled=true;
+    log('🌊 '+msg,'bad'); toast('🌊 La crue monte !','bad'); }
+
+  function goMenu(){
+    state='menu'; accelerated=false;
+    ['quizModal','confirmModal','endModal','ppmsModal'].forEach(id=>$(id).classList.remove('show'));
+    $('startModal').classList.add('show');
+    waterY=0; triggered=false; called=false; inRefuge=false;
+    if(sceneReady){ hideFlood(); rescueTruck.visible=false; rescueHeli.visible=false; }
+    updateHUD(); toast('↺ Retour au menu','');
+  }
+
+  function endGame(outcome){
+    if(ended) return; ended=true; state='ended';
+    const saved=groupsSavedCount();
+    score = saved*100 + (hasKit?50:0) + (called?50:0) + (inRefuge?100:0) + quizCorrect*50 +
+            (outcome==='win'?Math.round(Math.max(0,alertTime)+((accelerated?ACCEL_RISE:(cfg.rise+bonusRise))-riseT)):0);
+    const v=$('verdict');
+    if(outcome==='win'){ v.className='verdict win'; v.textContent='🏆 MISE EN SÛRETÉ RÉUSSIE'; }
+    else if(outcome==='part'){ v.className='verdict part'; v.textContent='⚠️ EN SÉCURITÉ, MAIS OBJECTIFS INCOMPLETS'; }
+    else { v.className='verdict lose'; v.textContent='❌ PRIS PAR LES EAUX'; }
+    $('scoreVal').textContent='SCORE  '+Math.max(0,score);
+    const R=$('recap'); R.innerHTML='';
+    const lines=[
+      [inRefuge,'✅','Tu t\'es réfugié à l\'étage du collège Ubelka, en responsable, après tes élèves.','❌','Tu n\'étais pas à l\'étage du collège : le professeur référent monte au point de ralliement, jamais au sous‑sol.'],
+      [called,'✅','Tu as appelé le 112 en précisant lieu, nombre d\'élèves et danger.','❌','Pense à alerter les secours (112) : une info claire sauve du temps.'],
+      [hasKit,'✅','Tu as emporté la trousse de secours / kit d\'urgence.','❌','Un kit (trousse, papiers, eau) est utile en cas d\'évacuation.'],
+      [saved>=cfg.req,'✅',saved+' groupe(s) d\'élèves ramenés au collège (objectif atteint).','❌',saved+' groupe(s) sur '+cfg.req+' : le responsable ramène tous ses élèves avant de monter.'],
+      [quizCorrect>0,'✅','Hydrogramme : '+quizCorrect+' bonne(s) lecture(s) → tu as anticipé le pic.','⚠️','Hydrogramme : entraîne‑toi à lire le pic (repère rouge) et la rampe montante.'],
+    ];
+    lines.forEach(([ok,yt,yf,nt,nf])=>{ const d=document.createElement('div'); d.className='r';
+      d.innerHTML='<span class="m">'+(ok?yt:nt)+'</span><span>'+(ok?yf:nf)+'</span>'; R.appendChild(d); });
+    const tip=document.createElement('div'); tip.className='r';
+    tip.innerHTML='<span class="m">💡</span><span>Règles d\'or du référent : ne traverse jamais une route inondée, pas d\'ascenseur, coupe si possible électricité/gaz, fais l\'appel, écoute les consignes (voir 🛡️ PPMS).</span>';
+    R.appendChild(tip);
+    $('endModal').classList.add('show');
+  }
+
+  /* ===== INTERACTIONS ===== */
+  function tryCall(){
+    if(state!=='playing') return;
+    if(!hasPhone){ toast('📞 Trouve d\'abord un moyen d\'appeler','warn'); log('📞 Il te faut d\'abord trouver un moyen d\'appeler.','warn'); return; }
+    if(called){ toast('📞 Secours déjà prévenus',''); return; }
+    called=true; setObj('o-call',true);
+    const pupils=activeGroups().filter(g=>g.rallied).length*3;
+    log('📞 Tu appelles le 112 : « Collège Ubelka, je suis le professeur référent, crue en cours, '+pupils+' élèves avec moi, nous montons à l\'étage ».','good');
+    toast('📞 112 appelé — les secours arrivent !','good');
+    if(sceneReady){ rescueT=0; rescueTruck.visible=true; rescueHeli.visible=true; }
+    updateHUD();
+  }
+  function tryInteract(){
+    if(state!=='playing'||inRefuge) return;
+    const r=refugeAt(playerX(),playerZ());
+    if(r){ state='paused'; $('confirmModal').classList.add('show'); return; }
+    for(const g of activeGroups()){ if(!g.rallied&&groupDist(g)<2.2){
+      g.rallied=true; if(sceneReady) g.halo.material.color.set(0x57c98a);
+      log('🧍 Groupe d\'élèves rallié : conduis‑le jusqu\'au collège Ubelka.','good');
+      toast('🧍 Groupe rallié — direction le collège','good'); return; } }
+  }
+  function doGoUp(){
+    const r=refugeAt(playerX(),playerZ()); if(!r) return;
+    inRefuge=true; setObj('o-refuge',true);
+    if(sceneReady){ player.position.y=r.slab; }
+    log('✅ Réfugié à l\'étage du '+r.name+'. Le professeur référent est en hauteur, avec ses élèves.','good');
+    toast('⬆️ À l\'étage du collège : en sécurité','good');
+    let missing=0;
+    activeGroups().forEach(g=>{ if(g.rallied&&!g.saved){
+      const on=g.anchor.x>=r.x0-1.5&&g.anchor.x<=r.x1+1.5&&g.anchor.z>=r.z0-1.5&&g.anchor.z<=r.z1+1.5;
+      if(on){ g.saved=true; if(sceneReady){ g.meshes.forEach(m=>m.position.y=r.slab); g.halo.visible=false; }
+        log('🧍 Groupe d\'élèves mis en sûreté à l\'étage du collège.','good'); }
+      else missing++;
+    }});
+    if(missing>0) log('⚠️ '+missing+' groupe(s) d\'élèves rallié(s) n\'a/ont pas atteint le collège à temps.','warn');
+    updateHUD();
+  }
+  function doSafe(){
+    if(state!=='playing'||ended) return;
+    if(!allDone()){ toast('Termine d\'abord tous les objectifs','warn'); return; }
+    if(triggered){
+      const f=Math.min(1,riseT/(cfg.rise+bonusRise));
+      riseT=f*ACCEL_RISE;
+      log('⏩ Mise en sécurité validée : tu observes la crue accélérée depuis l\'étage, avec tes élèves.','good');
+    }else{
+      triggerFlood('Mise en sécurité validée : tu observes la crue depuis l\'étage.');
+      log('⏩ Montée accélérée pour visualiser la crue.','warn');
+    }
+    accelerated=true;
+    toast('✅ Mise en sécurité — observe la crue','good');
+    updateHUD();
+  }
+  function playerX(){ return sceneReady?player.position.x:37; }
+  function playerZ(){ return sceneReady?player.position.z:10; }
+  function groupDist(g){ return sceneReady?g.anchor.distanceTo(player.position):99; }
+
+  /* ===== UI BIND ===== */
+  function bindUI(){
+    document.querySelectorAll('.lvl').forEach(el=> el.addEventListener('click',()=>chooseLevel(+el.dataset.lvl)));
+    $('quizSubmit').addEventListener('click',submitQuiz);
+    $('floodBtn').addEventListener('click',()=>{ if(state==='playing'&&!triggered) triggerFlood('Tu déclenches la crue avant la fin des 15 s : l\'eau monte.'); });
+    $('safeBtn').addEventListener('click',doSafe);
+    $('confirmYes').addEventListener('click',()=>{ doGoUp(); $('confirmModal').classList.remove('show'); state='playing'; });
+    $('confirmNo').addEventListener('click',()=>{ $('confirmModal').classList.remove('show'); state='playing'; });
+    $('menuBtn').addEventListener('click',goMenu);
+    $('ppmsBtn').addEventListener('click',()=>{ $('ppmsModal').classList.add('show'); });
+    $('ppmsClose').addEventListener('click',()=>{ $('ppmsModal').classList.remove('show'); });
+    $('ppmsModal').addEventListener('click',e=>{ if(e.target===$('ppmsModal')) $('ppmsModal').classList.remove('show'); });
+    $('endMenu').addEventListener('click',()=>{ $('endModal').classList.remove('show'); $('startModal').classList.add('show'); state='menu'; updateHUD(); });
+    $('endRetry').addEventListener('click',()=>{ $('endModal').classList.remove('show'); buildQuiz(); hydroT=0; $('quizModal').classList.add('show'); state='quiz'; });
+    $('fatalRetry').addEventListener('click',()=>location.reload());
+    bindRipple('.btn, .lvl, #floodBtn, #safeBtn, .topbtn');
+
+    addEventListener('keydown',e=>{
+      const k=e.key.toLowerCase(); keys[k]=true;
+      if(k==='e') tryInteract();
+      if(k==='c') tryCall();
+      if(k==='h'){ const h=$('hydro'); h.style.display=(h.style.display==='none')?'block':'none'; }
+      if(k==='escape'){ $('ppmsModal').classList.remove('show'); }
+      if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+    });
+    addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+  }
+
+  /* ===== THREE.JS SCÈNE ===== */
+  const keys={};
+  let player=null, scene=null, camera=null, renderer=null;
+  let riverMesh=null, items=[], groups=[], arrows={};
+  let rescueTruck, rescueHeli, truckRed, truckBlue, heliLight, heliRotor, heliTail, rescueT=0;
+  let floodMat=null, floodGrid=null, floodCells=[], floodH=[];
+  let _fm=null,_fp=null,_fq=null,_fs=null,_fc=null;
+  const groupDefs=[{x:13,z:16},{x:41,z:14},{x:15,z:31}];
+
+  function init3D(){
+    const canvas=$('scene');
+    renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.setSize(innerWidth,innerHeight);
+    renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+
+    scene=new THREE.Scene(); const SKY=0xbfe3f2; scene.background=new THREE.Color(SKY);
+    scene.fog=new THREE.Fog(SKY,70,150);
+    camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.1,400);
+    camera.position.set(GW/2,40,GH/2+40);
+
+    scene.add(new THREE.HemisphereLight(0xffffff,0x445533,0.95));
+    const sun=new THREE.DirectionalLight(0xfff2d6,1.05);
+    sun.position.set(40,70,30); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+    const d=46; sun.shadow.camera.left=-d; sun.shadow.camera.right=d; sun.shadow.camera.top=d; sun.shadow.camera.bottom=-d;
+    sun.shadow.camera.near=1; sun.shadow.camera.far=200; sun.shadow.bias=-0.0005;
+    scene.add(sun); scene.add(sun.target); sun.target.position.set(GW/2,0,GH/2);
+
+    const COLORS={grass:0x9bd06f,park:0x79c46a,road:0xc9cdd2,interior:0xdcc99c,river:0x5d8fb0,
+      building:0xd9c39a,tree:0x79c46a,bank:0xa7b06a,void:0x9bd06f};
+    const ground=new THREE.InstancedMesh(new THREE.BoxGeometry(1,0.2,1),new THREE.MeshLambertMaterial(),GW*GH);
+    ground.receiveShadow=true;
+    const _m=new THREE.Matrix4(), _c=new THREE.Color(); let gi=0;
+    for(let z=0;z<GH;z++)for(let x=0;x<GW;x++){
+      _m.makeTranslation(x+0.5,-0.1,z+0.5); ground.setMatrixAt(gi,_m);
+      _c.setHex(COLORS[grid[z][x]]||0x9bd06f); ground.setColorAt(gi,_c); gi++;
+    }
+    ground.instanceMatrix.needsUpdate=true; ground.instanceColor.needsUpdate=true; scene.add(ground);
+
+    const riverMat=new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:0.9});
+    riverMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,0.07,1),riverMat,riverTiles.length);
+    riverTiles.forEach(([x,z],i)=>{
+      _m.makeTranslation(x+0.5,0.13,z+0.5); riverMesh.setMatrixAt(i,_m);
+      _c.setHSL(0.55,0.55,0.40+0.07*Math.sin(x*0.7+z*0.5)+0.03*Math.cos(x*0.3)); riverMesh.setColorAt(i,_c);
+    });
+    riverMesh.instanceMatrix.needsUpdate=true; riverMesh.instanceColor.needsUpdate=true; scene.add(riverMesh);
+    const foamMat=new THREE.MeshLambertMaterial({color:0xbfe6f2,transparent:true,opacity:0.35});
+    const foam=new THREE.InstancedMesh(new THREE.BoxGeometry(1,0.02,0.18),foamMat,riverTiles.length);
+    riverTiles.forEach(([x,z],i)=>{ _m.makeTranslation(x+0.5,0.17,z+0.5+0.32*Math.sin(x*0.6)); foam.setMatrixAt(i,_m); });
+    foam.instanceMatrix.needsUpdate=true; scene.add(foam);
+
+    solids.forEach(s=>{
+      const sx=s.x1-s.x0, sz=s.z1-s.z0, h=s.h;
+      const m=new THREE.Mesh(new THREE.BoxGeometry(sx,h,sz),new THREE.MeshLambertMaterial({color:s.col}));
+      m.position.set((s.x0+s.x1)/2,h/2,(s.z0+s.z1)/2); m.castShadow=true; m.receiveShadow=true; scene.add(m);
+      const roof=new THREE.Mesh(new THREE.BoxGeometry(sx,0.25,sz),new THREE.MeshLambertMaterial({color:new THREE.Color(s.col).multiplyScalar(0.78)}));
+      roof.position.set((s.x0+s.x1)/2,h+0.12,(s.z0+s.z1)/2); roof.castShadow=true; scene.add(roof);
+    });
+
+    refuges.forEach(r=>{
+      const sx=r.x1-r.x0, sz=r.z1-r.z0, cx=(r.x0+r.x1)/2, cz=(r.z0+r.z1)/2, sl=r.slab;
+      const slab=new THREE.Mesh(new THREE.BoxGeometry(sx,0.3,sz),new THREE.MeshLambertMaterial({color:0xefe2c4}));
+      slab.position.set(cx,sl,cz); slab.castShadow=true; slab.receiveShadow=true; scene.add(slab);
+    });
+
+    buildCollegeVisuel();
+    buildLandmarkVisuel();
+
+    trees.forEach(([x,z])=>{
+      const trunk=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.9,0.3),new THREE.MeshLambertMaterial({color:0x7a5230}));
+      trunk.position.set(x+0.5,0.45,z+0.5); trunk.castShadow=true; scene.add(trunk);
+      const leaves=new THREE.Mesh(new THREE.BoxGeometry(1.1,1.3,1.1),new THREE.MeshLambertMaterial({color:0x4f9e4a}));
+      leaves.position.set(x+0.5,1.5,z+0.5); leaves.castShadow=true; scene.add(leaves);
+    });
+    shrubs.forEach(([x,z])=>{
+      const t=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.4,0.18),new THREE.MeshLambertMaterial({color:0x6b4a2a}));
+      t.position.set(x+0.5,0.2,z+0.5); scene.add(t);
+      const f1=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.7,0.7),new THREE.MeshLambertMaterial({color:0x3f7d3a}));
+      f1.position.set(x+0.5,0.75,z+0.5); f1.castShadow=true; scene.add(f1);
+      const f2=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.45,0.45),new THREE.MeshLambertMaterial({color:0x4f9e4a}));
+      f2.position.set(x+0.7,1.0,z+0.35); scene.add(f2);
+    });
+
+    function label(text,x,y,z,color,wh){
+      color=color||'#10243a'; wh=wh||2.0;
+      const pad=40, H=160;
+      const c=document.createElement('canvas'); const ctx=c.getContext('2d');
+      let fs=72; ctx.font='bold '+fs+'px Nunito, sans-serif';
+      while(ctx.measureText(text).width>1320 && fs>28){ fs-=4; ctx.font='bold '+fs+'px Nunito, sans-serif'; }
+      const tw=Math.ceil(ctx.measureText(text).width)+pad*2;
+      c.width=tw; c.height=H;
+      ctx.font='bold '+fs+'px Nunito, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.lineWidth=10; ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.strokeText(text,tw/2,H/2);
+      ctx.fillStyle=color; ctx.fillText(text,tw/2,H/2);
+      const tex=new THREE.CanvasTexture(c); tex.anisotropy=4;
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
+      sp.scale.set(wh*(tw/H), wh, 1); sp.position.set(x,y,z); sp.renderOrder=10; scene.add(sp); return sp;
+    }
+    label("L'Huveaune",20,2.6,4,'#1d6fa0');
+    label("Collège Ubelka",37.5,8.2,9.5,'#7d2e12');
+    label("Gymnase multisports",37.5,4.6,21);
+    label("Espace de la Confluence",18.5,4.0,23.5);
+
+    buildFloodGrid();
+
+    /* personnage voxel : role 'teacher' = prof (lunettes + sacoche + cravate), sinon élève */
+    function voxelFigure(bodyCol,headCol,scale,role){
+      scale=scale||1; const g=new THREE.Group();
+      const S=scale;
+      const legsCol = role==='teacher'?0x343a45:0x33405a;
+      const legs=new THREE.Mesh(new THREE.BoxGeometry(0.5*S,0.5*S,0.4*S),new THREE.MeshLambertMaterial({color:legsCol})); legs.position.y=0.25*S; g.add(legs);
+      const body=new THREE.Mesh(new THREE.BoxGeometry(0.6*S,0.7*S,0.45*S),new THREE.MeshLambertMaterial({color:bodyCol})); body.position.y=0.85*S; g.add(body);
+      const head=new THREE.Mesh(new THREE.BoxGeometry(0.42*S,0.42*S,0.42*S),new THREE.MeshLambertMaterial({color:headCol})); head.position.y=1.42*S; g.add(head);
+      if(role==='teacher'){
+        const collar=new THREE.Mesh(new THREE.BoxGeometry(0.30*S,0.12*S,0.30*S),new THREE.MeshLambertMaterial({color:0xf2f2f2})); collar.position.set(0,1.19*S,0); g.add(collar);
+        const tieMat=new THREE.MeshLambertMaterial({color:0x8e2b2b});
+        const tie=new THREE.Mesh(new THREE.BoxGeometry(0.08*S,0.42*S,0.05*S),tieMat); tie.position.set(0,0.92*S,0.235*S); g.add(tie);
+        const knot=new THREE.Mesh(new THREE.BoxGeometry(0.11*S,0.09*S,0.06*S),tieMat); knot.position.set(0,1.13*S,0.24*S); g.add(knot);
+        const hairMat=new THREE.MeshLambertMaterial({color:0x33241a});
+        const hairTop=new THREE.Mesh(new THREE.BoxGeometry(0.45*S,0.17*S,0.45*S),hairMat); hairTop.position.set(0,1.62*S,-0.01*S); g.add(hairTop);
+        const hairBack=new THREE.Mesh(new THREE.BoxGeometry(0.45*S,0.30*S,0.10*S),hairMat); hairBack.position.set(0,1.46*S,-0.20*S); g.add(hairBack);
+        const frameMat=new THREE.MeshLambertMaterial({color:0x15171c});
+        const glassMat=new THREE.MeshLambertMaterial({color:0xbfe6f2}); glassMat.emissive=new THREE.Color(0x224455);
+        const glassGeo=new THREE.BoxGeometry(0.13*S,0.10*S,0.03*S);
+        const gl=new THREE.Mesh(glassGeo,glassMat); gl.position.set(-0.10*S,1.46*S,0.225*S); g.add(gl);
+        const gr=new THREE.Mesh(glassGeo,glassMat); gr.position.set( 0.10*S,1.46*S,0.225*S); g.add(gr);
+        const bridge=new THREE.Mesh(new THREE.BoxGeometry(0.07*S,0.025*S,0.03*S),frameMat); bridge.position.set(0,1.47*S,0.235*S); g.add(bridge);
+        const frGeo=new THREE.BoxGeometry(0.15*S,0.02*S,0.035*S);
+        [[-0.10,1.51],[0.10,1.51],[-0.10,1.41],[0.10,1.41]].forEach(([fx,fy])=>{
+          const fr=new THREE.Mesh(frGeo,frameMat); fr.position.set(fx*S,fy*S,0.23*S); g.add(fr);
+        });
+        const armGeo=new THREE.BoxGeometry(0.025*S,0.025*S,0.30*S);
+        const armL=new THREE.Mesh(armGeo,frameMat); armL.position.set(-0.20*S,1.47*S,0.06*S); g.add(armL);
+        const armR=new THREE.Mesh(armGeo,frameMat); armR.position.set( 0.20*S,1.47*S,0.06*S); g.add(armR);
+        const bagMat=new THREE.MeshLambertMaterial({color:0x7a4a22});
+        const flapMat=new THREE.MeshLambertMaterial({color:0x5e3717});
+        const strapMat=new THREE.MeshLambertMaterial({color:0x4a2c14});
+        const bag=new THREE.Mesh(new THREE.BoxGeometry(0.18*S,0.30*S,0.40*S),bagMat); bag.position.set(0.31*S,0.66*S,0.10*S); g.add(bag);
+        const flap=new THREE.Mesh(new THREE.BoxGeometry(0.19*S,0.12*S,0.41*S),flapMat); flap.position.set(0.31*S,0.78*S,0.10*S); g.add(flap);
+        const buckle=new THREE.Mesh(new THREE.BoxGeometry(0.05*S,0.06*S,0.04*S),new THREE.MeshLambertMaterial({color:0xd9b24a})); buckle.position.set(0.31*S,0.70*S,0.31*S); g.add(buckle);
+        const strap=new THREE.Mesh(new THREE.BoxGeometry(0.06*S,0.74*S,0.05*S),strapMat); strap.position.set(0.02*S,0.95*S,0.235*S); strap.rotation.z=0.62; g.add(strap);
+      }
+      g.traverse(o=>{if(o.isMesh)o.castShadow=true;}); return g;
+    }
+    player=voxelFigure(0x2b3a55,0xf0c9a0,1,'teacher'); player.position.set(30.5,0,29.5); scene.add(player);
+
+    function makeKit(x,z){
+      const g=new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.BoxGeometry(0.7,0.5,0.5),new THREE.MeshLambertMaterial({color:0xd6453f})));
+      const cw=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.12,0.52),new THREE.MeshLambertMaterial({color:0xffffff}));
+      const ch=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.32,0.52),new THREE.MeshLambertMaterial({color:0xffffff}));
+      g.add(cw,ch); g.position.set(x+0.5,0.7,z+0.5); g.traverse(o=>o.isMesh&&(o.castShadow=true));
+      g.userData={type:'kit'}; scene.add(g); items.push(g); return g;
+    }
+    function makePhone(x,z){
+      const g=new THREE.Group();
+      const body=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.6,0.12),new THREE.MeshLambertMaterial({color:0x2b2f36}));
+      const scr=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.4,0.02),new THREE.MeshLambertMaterial({color:0x6fd0c9})); scr.material.emissive=new THREE.Color(0x1d6f6a);
+      scr.position.z=0.07; g.add(body,scr); g.position.set(x+0.5,0.7,z+0.5); g.traverse(o=>o.isMesh&&(o.castShadow=true));
+      g.userData={type:'phone'}; scene.add(g); items.push(g); return g;
+    }
+    makeKit(26,14); makePhone(46,25); makeKit(14,27);
+
+    const studentCols=[0x4f86d6,0xd65f8a,0x6fbf73,0xe0a23c,0x9b6fd6];
+    groupDefs.forEach((gd,gi)=>{
+      const anchor=new THREE.Vector3(gd.x+0.5,0,gd.z+0.5); const meshes=[];
+      for(let i=0;i<3;i++){ const f=voxelFigure(studentCols[(gi*3+i)%studentCols.length],0xf0c9a0,0.8,'student');
+        f.position.set(anchor.x+(i-1)*0.7,0,anchor.z+0.4); scene.add(f); meshes.push(f); }
+      const halo=new THREE.Mesh(new THREE.RingGeometry(0.9,1.15,24),new THREE.MeshBasicMaterial({color:0xf4b740,transparent:true,opacity:0.7,side:THREE.DoubleSide}));
+      halo.rotation.x=-Math.PI/2; halo.position.set(anchor.x,0.05,anchor.z); scene.add(halo);
+      groups.push({anchor,meshes,halo,rallied:false,saved:false,lost:false,active:true});
+    });
+
+    function makeArrow(color){ const m=new THREE.Mesh(new THREE.ConeGeometry(0.5,1,4),new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.9})); m.visible=false; scene.add(m); return m; }
+    arrows={kit:makeArrow(0xd6453f),phone:makeArrow(0x6fd0c9),refuge:makeArrow(0x57c98a)};
+
+    buildRescueVisuel();
+
+    addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+    animate();
+  }
+
+  function buildFloodGrid(){
+    _fm=new THREE.Matrix4(); _fp=new THREE.Vector3(); _fq=new THREE.Quaternion();
+    _fs=new THREE.Vector3(); _fc=new THREE.Color();
+    floodCells=[]; floodH=[];
+    for(let z=0;z<GH;z++)for(let x=0;x<GW;x++){
+      const t=grid[z][x];
+      if(t==='building'||t==='void') continue;
+      floodCells.push([x,z]); floodH.push(terrainHeight(t));
+    }
+    floodMat=new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:0.82,depthWrite:false});
+    floodGrid=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),floodMat,floodCells.length);
+    floodGrid.renderOrder=6;
+    for(let i=0;i<floodCells.length;i++){
+      _fm.compose(_fp.set(0,-5,0),_fq,_fs.set(0,0,0)); floodGrid.setMatrixAt(i,_fm);
+      _fc.setRGB(0.2,0.5,0.7); floodGrid.setColorAt(i,_fc);
+    }
+    floodGrid.instanceMatrix.needsUpdate=true; floodGrid.instanceColor.needsUpdate=true;
+    scene.add(floodGrid);
+  }
+  function hideFlood(){
+    if(!floodGrid) return;
+    for(let i=0;i<floodCells.length;i++){ _fm.compose(_fp.set(0,-5,0),_fq,_fs.set(0,0,0)); floodGrid.setMatrixAt(i,_fm); }
+    floodGrid.instanceMatrix.needsUpdate=true; floodMat.opacity=0;
+  }
+  function updateFloodVisual(now){
+    if(!floodGrid) return;
+    floodMat.opacity = triggered?0.82:0;
+    const w=now*0.004;
+    for(let i=0;i<floodCells.length;i++){
+      const cell=floodCells[i], x=cell[0], z=cell[1], h=floodH[i];
+      let depth=waterY-h;
+      if(depth<=0.01){ _fm.compose(_fp.set(0,-5,0),_fq,_fs.set(0,0,0)); floodGrid.setMatrixAt(i,_fm); continue; }
+      const wave=Math.sin(w + x*0.5 + z*0.35)*0.05*Math.min(1,depth*2);
+      const top=h+depth+wave;
+      const cy=h+depth*0.5;
+      _fm.compose(_fp.set(x+0.5,cy,z+0.5),_fq,_fs.set(1.02,Math.max(0.05,depth),1.02));
+      floodGrid.setMatrixAt(i,_fm);
+      if(depth<0.30){ _fc.setRGB(0.78,0.92,0.96); }
+      else { const t=Math.min(1,depth/cfg.max); _fc.setHSL(0.56,0.62,0.46-0.16*t); }
+      floodGrid.setColorAt(i,_fc);
+    }
+    floodGrid.instanceMatrix.needsUpdate=true; floodGrid.instanceColor.needsUpdate=true;
+  }
+
+  function buildCollegeVisuel(){
+    const WALL=0xe8d9b0, WIN=0x9fd2ec, TRIM=0xb9774a;
+    const wallMat=new THREE.MeshLambertMaterial({color:WALL});
+    const winMat=new THREE.MeshLambertMaterial({color:WIN}); winMat.emissive=new THREE.Color(0x224455);
+    const trimMat=new THREE.MeshLambertMaterial({color:TRIM});
+    const slab=refuges[0].slab;
+    function wall(x0,z0,x1,z1){
+      const sx=x1-x0, sz=z1-z0, cx=(x0+x1)/2, cz=(z0+z1)/2;
+      const m=new THREE.Mesh(new THREE.BoxGeometry(sx,slab,sz),wallMat);
+      m.position.set(cx,slab/2,cz); m.castShadow=true; m.receiveShadow=true; scene.add(m);
+      const t=new THREE.Mesh(new THREE.BoxGeometry(sx+0.1,0.3,sz+0.1),trimMat);
+      t.position.set(cx,slab+0.05,cz); t.castShadow=true; scene.add(t);
+      const horiz = sx>=sz; const len = horiz?sx:sz; const n=Math.max(1,Math.floor(len/1.6));
+      for(let i=0;i<n;i++){ const f=(i+0.5)/n;
+        for(const yy of [1.3,2.9]){
+          const w=new THREE.Mesh(new THREE.BoxGeometry(horiz?0.7:1.12,0.7,horiz?1.12:0.7),winMat);
+          w.position.set(horiz?x0+f*sx:cx,yy,horiz?cz:z0+f*sz); scene.add(w);
+        }
+      }
+    }
+    collegeWalls.forEach(w=>wall(w[0],w[1],w[2],w[3]));
+    const door=new THREE.Mesh(new THREE.BoxGeometry(0.2,2.2,1.0),new THREE.MeshLambertMaterial({color:0x6b4a2a}));
+    door.position.set(34.0,1.1,10.0); scene.add(door);
+    (function(){
+      const c=document.createElement('canvas'); c.width=512; c.height=128; const ctx=c.getContext('2d');
+      ctx.fillStyle='#7d2e12'; ctx.fillRect(0,0,512,128);
+      ctx.fillStyle='#f3ead6'; ctx.font='bold 56px Nunito, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('COLLÈGE UBELKA',256,66);
+      const tex=new THREE.CanvasTexture(c);
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
+      sp.scale.set(6,1.5,1); sp.position.set(37.5,3.2,6.9); scene.add(sp);
+    })();
+    const pole=new THREE.Mesh(new THREE.BoxGeometry(0.12,5,0.12),new THREE.MeshLambertMaterial({color:0xcfd8e3}));
+    pole.position.set(32.3,2.5,10); pole.castShadow=true; scene.add(pole);
+    [0x2746a8,0xf2f2f2,0xd2322d].forEach((col,i)=>{ const f=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.6,0.45),new THREE.MeshLambertMaterial({color:col}));
+      f.position.set(32.3,4.5,9.4+i*0.45); scene.add(f); });
+    const gateMat=new THREE.MeshLambertMaterial({color:0x8a93a0});
+    [9.3,10.7].forEach(z=>{ const p=new THREE.Mesh(new THREE.BoxGeometry(0.3,2.4,0.3),gateMat); p.position.set(33.3,1.2,z); p.castShadow=true; scene.add(p); });
+    const lintel=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,1.8),gateMat); lintel.position.set(33.3,2.4,10); scene.add(lintel);
+    const lineMat=new THREE.MeshLambertMaterial({color:0xf2f2f2});
+    for(let i=0;i<3;i++){ const ln=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.03,3.2),lineMat); ln.position.set(31.2+i*0.7,0.02,10); scene.add(ln); }
+    const ln2=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.03,0.12),lineMat); ln2.position.set(31.9,0.02,8.6); scene.add(ln2);
+    const ln3=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.03,0.12),lineMat); ln3.position.set(31.9,0.02,11.4); scene.add(ln3);
+  }
+
+  function buildLandmarkVisuel(){
+    landmarks.forEach(l=>{
+      const sx=l.x1-l.x0, sz=l.z1-l.z0, cx=(l.x0+l.x1)/2, cz=(l.z0+l.z1)/2, h=l.h;
+      const wallCol = l.type==='confluence'?0xdfe4ea:0xe7d8b4;
+      const trimCol = l.type==='confluence'?0x46566b:0x3f8f5a;
+      const wallMat=new THREE.MeshLambertMaterial({color:wallCol});
+      const m=new THREE.Mesh(new THREE.BoxGeometry(sx,h,sz),wallMat);
+      m.position.set(cx,h/2,cz); m.castShadow=true; m.receiveShadow=true; scene.add(m);
+      const over = l.type==='confluence'?0.9:0.25;
+      const roof=new THREE.Mesh(new THREE.BoxGeometry(sx+over,0.3,sz+over),new THREE.MeshLambertMaterial({color:new THREE.Color(wallCol).multiplyScalar(0.66)}));
+      roof.position.set(cx,h+0.12,cz); roof.castShadow=true; scene.add(roof);
+      const band=new THREE.Mesh(new THREE.BoxGeometry(sx+0.06,0.32,sz+0.06),new THREE.MeshLambertMaterial({color:trimCol}));
+      band.position.set(cx,h*0.66,cz); scene.add(band);
+      const winMat=new THREE.MeshLambertMaterial({color:0x9fd2ec}); winMat.emissive=new THREE.Color(0x223a48);
+      const placeWin=(wx,wy,wz,gx,gy,gz)=>{ const w=new THREE.Mesh(new THREE.BoxGeometry(gx,gy,gz),winMat); w.position.set(wx,wy,wz); scene.add(w); };
+      const longX=sx>=sz; const n=Math.max(2,Math.floor((longX?sx:sz)/1.5));
+      const ys = l.type==='confluence'?[h*0.42]:[h*0.4,h*0.78];
+      const faces = l.type==='confluence'?['N','E','W']:['N','S','E','W'];
+      for(let i=0;i<n;i++){ const f=(i+0.5)/n;
+        for(const yy of ys){
+          if(longX){ const wx=l.x0+f*sx;
+            if(faces.includes('N')) placeWin(wx,yy,l.z0,0.6,l.type==='confluence'?h*0.5:0.6,0.14);
+            if(faces.includes('S')) placeWin(wx,yy,l.z1,0.6,l.type==='confluence'?h*0.5:0.6,0.14);
+          } else { const wz=l.z0+f*sz;
+            if(faces.includes('W')) placeWin(l.x0,yy,wz,0.14,l.type==='confluence'?h*0.5:0.6,0.6);
+            if(faces.includes('E')) placeWin(l.x1,yy,wz,0.14,l.type==='confluence'?h*0.5:0.6,0.6);
+          }
+        }
+      }
+      if(l.type==='confluence'){
+        const glass=new THREE.Mesh(new THREE.BoxGeometry(sx*0.82,h*0.72,0.12),new THREE.MeshLambertMaterial({color:0x7fc6e6})); glass.material.emissive=new THREE.Color(0x1d4a5e);
+        glass.position.set(cx,h*0.46,l.z1+0.02); scene.add(glass);
+        const canopy=new THREE.Mesh(new THREE.BoxGeometry(sx*0.5,0.18,1.3),new THREE.MeshLambertMaterial({color:0x46566b}));
+        canopy.position.set(cx,h*0.52,l.z1+0.7); canopy.castShadow=true; scene.add(canopy);
+        const wing=new THREE.Mesh(new THREE.BoxGeometry(1.7,h*0.85,2.2),wallMat);
+        wing.position.set(l.x1-0.1,h*0.42,l.z0+1.1); wing.rotation.y=0.5; wing.castShadow=true; scene.add(wing);
+        const wingRoof=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.25,2.5),new THREE.MeshLambertMaterial({color:new THREE.Color(wallCol).multiplyScalar(0.66)}));
+        wingRoof.position.set(l.x1-0.1,h*0.85+0.1,l.z0+1.1); wingRoof.rotation.y=0.5; scene.add(wingRoof);
+      } else {
+        const door=new THREE.Mesh(new THREE.BoxGeometry(1.6,2.0,0.12),new THREE.MeshLambertMaterial({color:0x6b4a2a}));
+        door.position.set(cx,1.0,l.z1+0.02); scene.add(door);
+        const strip=new THREE.Mesh(new THREE.BoxGeometry(sx*0.8,0.5,0.12),winMat);
+        strip.position.set(cx,h*0.85,l.z1+0.02); scene.add(strip);
+      }
+    });
+  }
+
+  function buildRescueVisuel(){
+    rescueTruck=new THREE.Group();
+    const red=new THREE.MeshLambertMaterial({color:0xd2322d});
+    const dark=new THREE.MeshLambertMaterial({color:0x20242b});
+    const chrome=new THREE.MeshLambertMaterial({color:0xcfd8e3});
+    const chassis=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.7,1.3),red); chassis.position.y=0.7; rescueTruck.add(chassis);
+    const cab=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.9,1.3),red); cab.position.set(1.2,1.25,0); rescueTruck.add(cab);
+    const wind=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.5,1.0),new THREE.MeshLambertMaterial({color:0x9fd2ec})); wind.position.set(1.72,1.35,0); rescueTruck.add(wind);
+    const box=new THREE.Mesh(new THREE.BoxGeometry(1.8,1.0,1.3),red); box.position.set(-0.5,1.3,0); rescueTruck.add(box);
+    const stripe=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.18,1.32),chrome); stripe.position.y=0.95; rescueTruck.add(stripe);
+    const ladder=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.1,0.3),chrome); ladder.position.set(-0.3,1.9,0); rescueTruck.add(ladder);
+    [[-1.0],[0.2],[1.2]].forEach(([x])=>{ [-0.6,0.6].forEach(zz=>{
+      const w=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.25),dark); w.position.set(x,0.3,zz); rescueTruck.add(w); }); });
+    truckRed=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.25,0.25),new THREE.MeshLambertMaterial({color:0xff3030})); truckRed.material.emissive=new THREE.Color(0xff0000); truckRed.position.set(1.0,1.85,0.4); rescueTruck.add(truckRed);
+    truckBlue=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.25,0.25),new THREE.MeshLambertMaterial({color:0x3060ff})); truckBlue.material.emissive=new THREE.Color(0x0000ff); truckBlue.position.set(1.0,1.85,-0.4); rescueTruck.add(truckBlue);
+    rescueTruck.traverse(o=>{if(o.isMesh)o.castShadow=true;});
+    rescueTruck.visible=false; scene.add(rescueTruck);
+
+    rescueHeli=new THREE.Group();
+    const hred=new THREE.MeshLambertMaterial({color:0xd2322d});
+    const hwhite=new THREE.MeshLambertMaterial({color:0xf2f2f2});
+    const body=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.0,1.2),hred); rescueHeli.add(body);
+    const nose=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.8,1.0),hwhite); nose.position.set(1.3,-0.05,0); rescueHeli.add(nose);
+    const cockpit=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.5,0.9),new THREE.MeshLambertMaterial({color:0x9fd2ec})); cockpit.position.set(1.35,0.15,0); rescueHeli.add(cockpit);
+    const tail=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.3,0.3),hred); tail.position.set(-1.9,0.2,0); rescueHeli.add(tail);
+    const fin=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.8,0.12),hred); fin.position.set(-2.7,0.6,0); rescueHeli.add(fin);
+    [-0.5,0.5].forEach(z=>{ const sk=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.1,0.12),new THREE.MeshLambertMaterial({color:0x333})); sk.position.set(0,-0.7,z); rescueHeli.add(sk);
+      const leg=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.4,0.1),new THREE.MeshLambertMaterial({color:0x333})); leg.position.set(0,-0.5,z); rescueHeli.add(leg); });
+    const mast=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.4,0.2),new THREE.MeshLambertMaterial({color:0x333})); mast.position.set(0,0.7,0); rescueHeli.add(mast);
+    heliRotor=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.08,0.25),new THREE.MeshLambertMaterial({color:0x222})); heliRotor.position.set(0,0.95,0); rescueHeli.add(heliRotor);
+    const rotor2=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.08,4.6),new THREE.MeshLambertMaterial({color:0x222})); rotor2.position.set(0,0.95,0); heliRotor.add(rotor2);
+    heliTail=new THREE.Mesh(new THREE.BoxGeometry(0.08,1.0,0.12),new THREE.MeshLambertMaterial({color:0x222})); heliTail.position.set(-2.9,0.6,0.18); rescueHeli.add(heliTail);
+    heliLight=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.2,0.3),new THREE.MeshLambertMaterial({color:0xffffff})); heliLight.material.emissive=new THREE.Color(0xffffff); heliLight.position.set(0,-0.55,0); rescueHeli.add(heliLight);
+    rescueHeli.traverse(o=>{if(o.isMesh)o.castShadow=true;});
+    rescueHeli.visible=false; scene.add(rescueHeli);
+  }
+  function animateRescue(dt){
+    rescueT+=dt;
+    let tx,tz,ry;
+    if(rescueT<4){ const k=rescueT/4; tx=62-18*k; tz=27; ry=Math.PI; }
+    else if(rescueT<8){ const k=(rescueT-4)/4; tx=44; tz=27-14*k; ry=Math.PI/2; }
+    else { tx=44; tz=13; ry=Math.PI/2; }
+    rescueTruck.position.set(tx,0,tz); rescueTruck.rotation.y=ry;
+    const blink=Math.sin(rescueT*12)>0;
+    truckRed.material.emissive.setHex(blink?0xff0000:0x330000);
+    truckBlue.material.emissive.setHex(blink?0x000033:0x0000ff);
+    const a=rescueT*0.6; const cx=37.5, cz=10;
+    rescueHeli.position.set(cx+Math.cos(a)*13, 16+Math.sin(rescueT*1.5)*0.6, cz+Math.sin(a)*13);
+    rescueHeli.rotation.y=-a-Math.PI/2;
+    heliRotor.rotation.y+=dt*30; heliTail.rotation.x+=dt*40;
+    heliLight.material.emissive.setHex(Math.sin(rescueT*10)>0?0xffffff:0x440000);
+  }
+
+  function resetWorld3D(){
+    player.position.set(30.5,0,29.5); player.rotation.y=0;
+    const ix=[26,46,14], iz=[14,25,27];
+    items.forEach((it,i)=>{ it.visible=true; it.userData.taken=false; it.position.set(ix[i]+0.5,0.7,iz[i]+0.5); });
+    groups.forEach((g,i)=>{
+      g.active = i<cfg.req;
+      g.rallied=false; g.saved=false; g.lost=false;
+      g.anchor.set(groupDefs[i].x+0.5,0,groupDefs[i].z+0.5);
+      g.meshes.forEach((m,k)=>{ m.position.set(g.anchor.x+(k-1)*0.7,0,g.anchor.z+0.4); m.visible=g.active; });
+      g.halo.visible=g.active; g.halo.material.color.set(0xf4b740);
+    });
+    hideFlood();
+    rescueTruck.visible=false; rescueHeli.visible=false;
+  }
+
+  let lastT=performance.now();
+  const SPEED=8.2, R=0.32;
+  function moveAxis(axis,amt){
+    const p=player.position; const nx=axis==='x'?p.x+amt:p.x, nz=axis==='z'?p.z+amt:p.z;
+    const pts = axis==='x' ? [[nx+(amt>0?R:-R),p.z+R],[nx+(amt>0?R:-R),p.z-R],[nx+(amt>0?R:-R),p.z]]
+                           : [[p.x+R,nz+(amt>0?R:-R)],[p.x-R,nz+(amt>0?R:-R)],[p.x,nz+(amt>0?R:-R)]];
+    if(pts.some(([x,z])=>blocked(x,z))) return;
+    if(axis==='x')p.x=nx; else p.z=nz;
+  }
+  function update(dt){
+    hydroT+=dt;
+    if(state==='quiz'){
+      const cu=Math.min(1,hydroT/16);
+      drawHydro(qctx,qCanvas.width,qCanvas.height,cu,false);
+      drawHydro(hctx,hCanvas.width,hCanvas.height,cu,false);
+      return;
+    }
+    const cursorU=Math.min(1,hydroT/60);
+    if(state==='playing'&&cursorU>UM&&!peakLogged){ peakLogged=true; peakFlash=0.6;
+      log('📈 PIC DE CRUE sur l\'hydrogramme : danger maximal.','warn'); toast('📈 Pic de crue atteint sur la courbe','warn'); }
+    if(peakFlash>0) peakFlash-=dt;
+    drawHydro(hctx,hCanvas.width,hCanvas.height,cursorU,peakFlash>0);
+
+    if(state!=='playing'){
+      if(state==='menu'){ const t=performance.now()*0.00015; camera.position.set(GW/2+Math.cos(t)*52,42,GH/2+Math.sin(t)*52); camera.lookAt(GW/2,2,GH/2); }
+      return;
+    }
+    if(!inRefuge){
+      let mx=0,mz=0;
+      if(keys['w']||keys['z']||keys['arrowup'])mz-=1;
+      if(keys['s']||keys['arrowdown'])mz+=1;
+      if(keys['a']||keys['q']||keys['arrowleft'])mx-=1;
+      if(keys['d']||keys['arrowright'])mx+=1;
+      if(mx||mz){ const l=Math.hypot(mx,mz); mx/=l; mz/=l; moveAxis('x',mx*SPEED*dt); moveAxis('z',mz*SPEED*dt); player.rotation.y=Math.atan2(mx,mz); }
+    }
+    items.forEach(it=>{ if(it.visible&&!it.userData.taken&&it.position.distanceTo(player.position)<1.4){
+      it.userData.taken=true; it.visible=false;
+      if(it.userData.type==='kit'){ hasKit=true; log('🧰 Trousse de secours récupérée.','good'); toast('🧰 Trousse de secours récupérée','good'); }
+      else { hasPhone=true; log('📞 Moyen d\'appel trouvé : touche C pour le 112.','good'); toast('📞 Moyen d\'appel trouvé — touche C','good'); }
+      updateHUD();
+    }});
+    activeGroups().forEach((g,gi)=>{
+      if(g.rallied&&!g.saved&&!g.lost){
+        const target=new THREE.Vector3(player.position.x,player.position.y,player.position.z+1.6+gi*0.4);
+        g.anchor.lerp(target,Math.min(1,dt*4));
+        g.meshes.forEach((m,k)=>{ const off=new THREE.Vector3((k-1)*0.6,0,(k%2)*0.4);
+          m.position.lerp(g.anchor.clone().add(off).setY(player.position.y),Math.min(1,dt*5)); m.rotation.y=player.rotation.y; });
+        g.halo.position.set(g.anchor.x,player.position.y+0.05,g.anchor.z);
+      }
+    });
+    if(!triggered){ alertTime-=dt; if(alertTime<=0) triggerFlood('Fin des 15 s : la crue arrive, l\'eau monte !'); }
+    else{
+      riseT+=dt;
+      const denom = accelerated?ACCEL_RISE:(cfg.rise+bonusRise);
+      const x=Math.min(1,riseT/denom);
+      waterY=cfg.max*(x*x*(3-2*x));
+      updateFloodVisual(performance.now());
+      if(!waterWarn1&&waterY>cfg.max*0.4){ waterWarn1=true; log('🌊 L\'eau envahit les rues basses.','warn'); toast('🌊 L\'eau gagne les rues basses','warn'); }
+      if(!waterWarn2&&waterY>cfg.max*0.7){ waterWarn2=true; log('🌊 L\'eau monte vite : rejoins l\'étage du collège avec tes élèves !','bad'); toast('⚠️ Monte à l\'étage, vite !','bad'); }
+      const danger=cfg.max*0.92;
+      if(!inRefuge&&waterY>danger){ log('🌊 L\'eau t\'a rattrapé au rez‑de‑chaussée ! Le professeur référent devait monter à l\'étage.','bad'); endGame('lose'); }
+      activeGroups().forEach(g=>{ if(g.rallied&&!g.saved&&!g.lost&&waterY>danger){ g.lost=true; g.halo.visible=false; g.meshes.forEach(m=>m.visible=false); log('🧍 Un groupe d\'élèves rallié n\'a pas atteint le collège à temps…','bad'); } });
+      if(x>=1&&!ended){ const saved=groupsSavedCount();
+        endGame((inRefuge&&called&&hasKit&&saved>=cfg.req)?'win':(inRefuge?'part':'lose')); }
+    }
+    const show=cfg.hints&&!inRefuge;
+    const kit=items.find(i=>i.userData.type==='kit'&&!i.userData.taken);
+    const ph=items.find(i=>i.userData.type==='phone'&&!i.userData.taken);
+    function aim(arrow,target,cond){ if(show&&cond&&target){ arrow.visible=true;
+      arrow.position.set(target.x,2.4+Math.sin(performance.now()*0.005)*0.3,target.z); arrow.rotation.y=Math.PI; } else arrow.visible=false; }
+    aim(arrows.kit, kit?kit.position:null, !hasKit&&!!kit);
+    aim(arrows.phone, ph?ph.position:null, !hasPhone&&!!ph);
+    const r=refuges[0]; aim(arrows.refuge, {x:(r.x0+r.x1)/2,z:(r.z0+r.z1)/2}, true);
+
+    const camTarget=new THREE.Vector3(player.position.x,player.position.y+1,player.position.z);
+    camera.position.lerp(camTarget.clone().add(new THREE.Vector3(0,17,21)),Math.min(1,dt*4)); camera.lookAt(camTarget);
+    updateHUD();
+  }
+  function animate(){
+    const now=performance.now(); const dt=Math.min(0.05,(now-lastT)/1000); lastT=now;
+    items.forEach(it=>{ if(it.visible){ it.rotation.y+=dt*1.5; it.position.y=0.7+Math.sin(now*0.003+it.position.x)*0.12; }});
+    groups.forEach(g=>{ if(g.active&&!g.rallied){ g.meshes.forEach((m,k)=>m.position.y=Math.abs(Math.sin(now*0.004+k))*0.06); g.halo.rotation.z+=dt; }});
+    if(riverMesh) riverMesh.position.y=0.13+Math.sin(now*0.0015)*0.02;
+    if(sceneReady&&called){ animateRescue(dt); }
+    update(dt);
+    renderer.render(scene,camera);
+    requestAnimationFrame(animate);
+  }
+
+  function boot(){
+    bindUI();
+    if(sceneReady){ try{ init3D(); }catch(err){ console.error(err); $('fatal').classList.add('show'); } }
+    else { $('fatal').classList.add('show'); }
+    drawHydro(hctx,hCanvas?hCanvas.width:600,hCanvas?hCanvas.height:320,0,false);
+    updateHUD();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+})();
+</script>
+</body>
+</html>
